@@ -62,7 +62,7 @@ func (r *RedisImpl) Consume(streams []string, consumerID string, consumerGroup s
 	// only get new messages
 	streams = append(streams, ">")
 	for _, stream := range streams {
-		err := r.Client.XGroupCreateMkStream(stream, consumerGroup, "0").Err()
+		err := r.Client.XGroupCreateMkStream(stream, consumerGroup, "$").Err()
 		if err != nil {
 			log.Println(err)
 		}

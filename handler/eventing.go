@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/bludot/event-streaming-redis-demo/internal/services/consumer"
+	"github.com/bludot/event-streaming-redis-demo/internal/services/processor"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/redis"
 	"log"
 )
@@ -25,9 +26,13 @@ func Consume() error {
 	// consumerID := uuid.NewString()
 	consumerID := "message-consumer"
 	consumerInstance := consumer.NewConsumer[Event[MessagePayload]](consumerID, []string{"messages"}, "message-consumer-group", redisClient)
-	err := consumerInstance.Consume(func(data Event[MessagePayload]) error {
-		log.Println(data.Payload.Message)
-		return nil
+	processorInstance := processor.NewProcessor[Event[MessagePayload]]()
+
+	err := consumerInstance.Consume(func(data string) error {
+		return processorInstance.Process(data, func(data Event[MessagePayload]) error {
+			log.Println("Processing event", data)
+			return nil
+		})
 	})
 
 	return err

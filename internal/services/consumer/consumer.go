@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-type ConsumerFunc[T any] func(data T) error
+type ConsumerFunc[T any] func(jsonString string) error
 
 type Consumer[T any] interface {
 	Consume(fn ConsumerFunc[T]) error
@@ -69,7 +69,7 @@ func (c *ConsumerImpl[T]) Consume(fn ConsumerFunc[T]) error {
 		}
 
 		err = json.Unmarshal(bytes, &payload)
-		err = fn(payload)
+		err = fn(string(bytes))
 		if err != nil {
 			return err
 		}

@@ -17,7 +17,7 @@ type Processor[T any] struct {
 	ExponentialBackOff *backoff.ExponentialBackOff
 }
 
-func NewProcessor[T any]() *Processor[T] {
+func NewProcessor[T any]() ProcessorImpl[T] {
 	return &Processor[T]{
 		ExponentialBackOff: backoff.NewExponentialBackOff(),
 	}
