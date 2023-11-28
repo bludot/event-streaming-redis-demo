@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/consumer"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/processor"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/redis"
@@ -30,7 +31,8 @@ func Consume() error {
 
 	err := consumerInstance.Consume(func(data string) error {
 		return processorInstance.Process(data, func(data Event[MessagePayload]) error {
-			log.Println("Processing event", data)
+			jsonString, _ := json.Marshal(data)
+			log.Println("Processing event", string(jsonString))
 			return nil
 		})
 	})
