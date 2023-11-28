@@ -39,6 +39,7 @@ func Consume() error {
 		return processorInstance.Process(data, func(data Event[MessagePayload]) error {
 			jsonString, _ := json.Marshal(data)
 			log.Println("Processing event", string(jsonString))
+			//return nil
 			if count == 5 {
 				log.Println("Success")
 				count = 0
