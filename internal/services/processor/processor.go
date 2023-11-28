@@ -2,6 +2,8 @@ package processor
 
 import (
 	"encoding/json"
+	"errors"
+	"github.com/bludot/event-streaming-redis-demo/internal/services/publisher"
 	"github.com/cenkalti/backoff/v4"
 	"time"
 )
@@ -15,11 +17,13 @@ type ProcessorImpl[T any] interface {
 
 type Processor[T any] struct {
 	ExponentialBackOff *backoff.ExponentialBackOff
+	Publisher          publisher.Publisher[T]
 }
 
-func NewProcessor[T any]() ProcessorImpl[T] {
+func NewProcessor[T any](publisher publisher.Publisher[T]) ProcessorImpl[T] {
 	return &Processor[T]{
 		ExponentialBackOff: backoff.NewExponentialBackOff(),
+		Publisher:          publisher,
 	}
 }
 
@@ -34,6 +38,61 @@ func (p *Processor[T]) Parse(payload string) (*T, error) {
 
 }
 
+func (p *Processor[T]) increaseRetries(payload string) (*T, error) {
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(payload), &data)
+	if err != nil {
+		return nil, err
+	}
+
+	if data["payload"] == nil {
+		return nil, err
+	}
+	if data["payload"] != nil {
+		if data["payload"].(map[string]interface{})["retries"] == nil {
+			data["payload"].(map[string]interface{})["retries"] = 0
+		}
+
+	}
+	retries := data["payload"].(map[string]interface{})["retries"].(float64)
+	data["payload"].(map[string]interface{})["retries"] = retries + 1
+
+	newPayloadJSON, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var newPayload T
+	err = json.Unmarshal(newPayloadJSON, &newPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	return &newPayload, nil
+
+}
+
+func (p *Processor[T]) getRetries(payload string) (int, error) {
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(payload), &data)
+	if err != nil {
+		return 0, err
+	}
+
+	if data["payload"] == nil {
+		return 0, err
+	}
+	if data["payload"] != nil {
+		if data["payload"].(map[string]interface{})["retries"] == nil {
+			data["payload"].(map[string]interface{})["retries"] = 0
+		}
+
+	}
+	retries := data["payload"].(map[string]interface{})["retries"].(float64)
+	return int(retries), nil
+
+}
+
 func (p *Processor[T]) Process(payload string, fn ProcessorFunc[T]) error {
 	data, err := p.Parse(payload)
 	if err != nil {
@@ -45,16 +104,33 @@ func (p *Processor[T]) Process(payload string, fn ProcessorFunc[T]) error {
 		return fn(*data)
 	}
 
+	retries, err := p.getRetries(payload)
+	if err != nil {
+		return err
+	}
+
+	if retries >= 10 {
+		return errors.New("max retries")
+	}
+
 	duration := p.ExponentialBackOff.NextBackOff()
 	if duration == backoff.Stop {
 		p.ExponentialBackOff.Reset()
 	} else {
 		err = operation()
 		if err != nil {
+			newPayload, _ := p.increaseRetries(payload)
+			p.publishRetry(*newPayload)
+
 			time.Sleep(duration)
-			return err
+			return nil
 		}
+		p.ExponentialBackOff.Reset()
 	}
 
 	return nil
+}
+
+func (p *Processor[T]) publishRetry(message T) {
+	_ = p.Publisher.Publish("messages", message)
 }

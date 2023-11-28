@@ -8,8 +8,16 @@ import (
 
 func main() {
 	redisClient := redis.NewRedisClient()
-	publisherInstance := publisher.NewPublisher[handler.EventHeader, handler.MessagePayload](redisClient)
-	err := publisherInstance.Publish("messages", handler.EventHeader{TraceID: "123"}, handler.MessagePayload{Message: "Hello World2"})
+	publisherInstance := publisher.NewPublisher[handler.Event[handler.MessagePayload]](redisClient)
+	err := publisherInstance.Publish("messages", handler.Event[handler.MessagePayload]{
+		Payload: handler.MessagePayload{
+			Headers: handler.EventHeader{
+				TraceID: "1234",
+			},
+			Message: "Hello world",
+		},
+		Retries: 1,
+	})
 	if err != nil {
 		panic(err)
 	}

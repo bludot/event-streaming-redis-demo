@@ -11,7 +11,7 @@ import (
 type ConsumerFunc func(data map[string]interface{}) error
 
 type RedisClient interface {
-	Publish(channel string, headers map[string]interface{}, payload map[string]interface{}) error
+	Publish(channel string, payload map[string]interface{}) error
 	Consume(streams []string, consumerID string, consumerGroup string, fn ConsumerFunc) error
 }
 
@@ -28,16 +28,16 @@ func NewRedisClient() RedisClient {
 	}
 }
 
-func (r *RedisImpl) Publish(channel string, headers map[string]interface{}, payload map[string]interface{}) error {
+func (r *RedisImpl) Publish(channel string, payload map[string]interface{}) error {
 	log.Println("Publishing event to RedisClient")
 
 	// convert payload to JSON string
-	payloadJSON, err := json.Marshal(payload)
+	payloadJSON, err := json.Marshal(payload["payload"])
 	if err != nil {
 		return err
 	}
 	payloadBase64 := base64.StdEncoding.EncodeToString(payloadJSON)
-	headersJSON, err := json.Marshal(headers)
+	headersJSON, err := json.Marshal(payload["headers"])
 	if err != nil {
 		return err
 	}

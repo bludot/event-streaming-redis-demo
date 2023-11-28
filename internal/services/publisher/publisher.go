@@ -5,32 +5,28 @@ import (
 	"github.com/bludot/event-streaming-redis-demo/internal/services/redis"
 )
 
-type Publisher[H any, P any] interface {
-	Publish(channel string, headers H, payload P) error
+type Publisher[T any] interface {
+	Publish(channel string, payload T) error
 }
 
-type PublisherImpl[H any, P any] struct {
+type PublisherImpl[T any] struct {
 	Redis redis.RedisClient
 }
 
-func NewPublisher[H any, P any](redisClient redis.RedisClient) Publisher[H, P] {
-	return &PublisherImpl[H, P]{
+func NewPublisher[T any](redisClient redis.RedisClient) Publisher[T] {
+	return &PublisherImpl[T]{
 		Redis: redisClient,
 	}
 }
 
-func (p *PublisherImpl[H, P]) Publish(channel string, headers H, payload P) error {
-	headersMap, err := convertToMapStringInterface(headers)
-	if err != nil {
-		return err
-	}
+func (p *PublisherImpl[T]) Publish(channel string, payload T) error {
 
 	payloadMap, err := convertToMapStringInterface(payload)
 	if err != nil {
 		return err
 	}
 
-	return p.Redis.Publish(channel, headersMap, payloadMap)
+	return p.Redis.Publish(channel, payloadMap)
 }
 
 func convertToMapStringInterface(data interface{}) (map[string]interface{}, error) {
