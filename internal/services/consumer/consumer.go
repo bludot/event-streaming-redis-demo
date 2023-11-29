@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/redis"
-	"log"
 )
 
 type ConsumerFunc[T any] func(jsonString string) error
@@ -30,7 +29,6 @@ func NewConsumer[T any](consumerID string, streams []string, consumerGroup strin
 }
 
 func (c *ConsumerImpl[T]) Consume(fn ConsumerFunc[T]) error {
-	log.Println("Consuming events from RedisClient")
 
 	err := c.RedisClient.Consume(c.Streams, c.ConsumerID, c.ConsumerGroup, func(data map[string]interface{}) error {
 		var payload T

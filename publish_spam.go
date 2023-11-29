@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/bludot/event-streaming-redis-demo/config"
 	"github.com/bludot/event-streaming-redis-demo/handler"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/publisher"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/redis"
@@ -34,7 +35,10 @@ func main() {
 
 func publishMessage(finish func(), count int) {
 	defer finish()
-	redisClient := redis.NewRedisClient()
+	redisClient := redis.NewRedisClient(config.RedisConfig{
+		Host: "localhost",
+		Port: 6379,
+	})
 	publisherInstance := publisher.NewPublisher[handler.Event[handler.MessagePayload]](redisClient)
 	err := publisherInstance.Publish("messages", handler.Event[handler.MessagePayload]{
 		Payload: handler.MessagePayload{

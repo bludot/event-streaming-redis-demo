@@ -3,11 +3,14 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"github.com/bludot/event-streaming-redis-demo/config"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/consumer"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/processor"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/publisher"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/redis"
 	"log"
+	"math/rand"
+	"time"
 )
 
 type EventHeader struct {
@@ -26,7 +29,8 @@ type MessagePayload struct {
 }
 
 func Consume() error {
-	redisClient := redis.NewRedisClient()
+	cfg := config.LoadConfig()
+	redisClient := redis.NewRedisClient(cfg.Redis)
 	// consumerID := uuid.NewString()
 	consumerID := "message-consumer"
 	consumerInstance := consumer.NewConsumer[Event[MessagePayload]](consumerID, []string{"messages"}, "message-consumer-group", redisClient)
@@ -39,14 +43,17 @@ func Consume() error {
 		return processorInstance.Process(data, func(data Event[MessagePayload]) error {
 			jsonString, _ := json.Marshal(data)
 			log.Println("Processing event", string(jsonString))
+			// sleep between 0.1 to 20 seconds
+			time.Sleep(time.Duration(rand.Intn(20000)) * time.Millisecond)
 			//return nil
-			if count == 5 {
-				log.Println("Success")
+			if count > 100 && count < 105 {
+
 				count = 0
-				return nil
+				return errors.New("Fake fail")
 			}
 			count++
-			return errors.New("Fake fail")
+
+			return nil
 		})
 	})
 
