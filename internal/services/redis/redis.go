@@ -64,9 +64,7 @@ func (r *RedisImpl) Consume(streams []string, consumerID string, consumerGroup s
 
 	_ = r.consumePending(streams, consumerID, consumerGroup, fn)
 
-	go func() {
-		_ = r.consumeFromBeginning(streams, consumerID, consumerGroup, fn)
-	}()
+	_ = r.consumeFromBeginning(streams, consumerID, consumerGroup, fn)
 
 	log.Println("Consuming events from RedisClient")
 	// only get new messages
@@ -117,33 +115,32 @@ func (r *RedisImpl) consumeFromBeginning(streamsStrings []string, consumerID str
 		}
 	}
 
-	for {
-		streams, err := r.Client.XReadGroup(&redis.XReadGroupArgs{
-			Group:    consumerGroup,
-			Consumer: consumerID,
-			Streams:  streamsStrings,
-			Count:    100000,
-			Block:    0,
-			NoAck:    false,
-		}).Result()
-		if err != nil {
-			return err
-		}
+	streams, err := r.Client.XReadGroup(&redis.XReadGroupArgs{
+		Group:    consumerGroup,
+		Consumer: consumerID,
+		Streams:  streamsStrings,
+		Count:    100000,
+		Block:    0,
+		NoAck:    false,
+	}).Result()
+	if err != nil {
+		return err
+	}
 
-		for _, stream := range streams {
-			for _, message := range stream.Messages {
-				processorError := fn(message.Values)
+	for _, stream := range streams {
+		for _, message := range stream.Messages {
+			processorError := fn(message.Values)
 
-				// err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
-				if err != nil {
-					return err
-				}
-				if processorError != nil {
-					return processorError
-				}
+			// err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
+			if err != nil {
+				return err
+			}
+			if processorError != nil {
+				return processorError
 			}
 		}
 	}
+	return nil
 
 }
 
