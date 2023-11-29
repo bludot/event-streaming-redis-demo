@@ -94,7 +94,7 @@ func (r *RedisImpl) Consume(streams []string, consumerID string, consumerGroup s
 			for _, message := range stream.Messages {
 				processorError := fn(message.Values)
 
-				// err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
+				err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
 				if err != nil {
 					return err
 				}
@@ -131,7 +131,7 @@ func (r *RedisImpl) consumeFromBeginning(streamsStrings []string, consumerID str
 		for _, message := range stream.Messages {
 			processorError := fn(message.Values)
 
-			// err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
+			err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
 			if err != nil {
 				return err
 			}
