@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/bludot/event-streaming-redis-demo/internal/services/redis"
+	"log"
+	"strconv"
 )
 
 type ConsumerFunc[T any] func(jsonString string) error
@@ -31,37 +33,13 @@ func NewConsumer[T any](consumerID string, streams []string, consumerGroup strin
 func (c *ConsumerImpl[T]) Consume(fn ConsumerFunc[T]) error {
 
 	err := c.RedisClient.Consume(c.Streams, c.ConsumerID, c.ConsumerGroup, func(data map[string]interface{}) error {
-		var payload T
-		// data to json
-		// base64 decode payload
-		dataPayloadJsonString, err := base64.StdEncoding.DecodeString(data["payload"].(string))
+		payload, err := c.decodeToStruct(data)
 		if err != nil {
-			return err
+			log.Println("Error decoding payload", err)
+			return nil
 		}
 
-		// base64 decode headers
-		dataHeadersJsonString, err := base64.StdEncoding.DecodeString(data["headers"].(string))
-		if err != nil {
-			return err
-		}
-
-		headersMap := make(map[string]interface{})
-		err = json.Unmarshal([]byte(dataHeadersJsonString), &headersMap)
-		if err != nil {
-			return err
-		}
-
-		payloadMap := make(map[string]interface{})
-		err = json.Unmarshal([]byte(dataPayloadJsonString), &payloadMap)
-		if err != nil {
-			return err
-		}
-
-		eventMap := make(map[string]interface{})
-		eventMap["payload"] = payloadMap
-		eventMap["headers"] = headersMap
-
-		bytes, err := json.Marshal(eventMap)
+		bytes, err := json.Marshal(payload)
 		if err != nil {
 			return err
 		}
@@ -75,4 +53,48 @@ func (c *ConsumerImpl[T]) Consume(fn ConsumerFunc[T]) error {
 	})
 
 	return err
+}
+
+func (c *ConsumerImpl[T]) decodeToStruct(data map[string]interface{}) (*T, error) {
+
+	// for each field, decode from base64 and convert whole map to struct
+	for key, value := range data {
+
+		decoded, err := base64.StdEncoding.DecodeString(value.(string))
+		if err != nil {
+			// check if its a number
+			val, err := strconv.Atoi(value.(string))
+			if err != nil {
+				data[key] = string(decoded)
+				continue
+			}
+
+			data[key] = val
+			continue
+		}
+		// convert to map[string]interface{}
+		var decodedMap map[string]interface{}
+		err = json.Unmarshal(decoded, &decodedMap)
+		if err != nil {
+			data[key] = string(decoded)
+			continue
+		}
+		data[key] = decodedMap
+
+	}
+
+	// convert date to JSON string
+	jsonString, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var payload T
+	err = json.Unmarshal([]byte(jsonString), &payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return &payload, nil
+
 }

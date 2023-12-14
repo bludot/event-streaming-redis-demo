@@ -3,6 +3,8 @@ package config
 import (
 	"github.com/spf13/viper"
 	"log"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -24,7 +26,11 @@ type RedisConfig struct {
 }
 
 func LoadConfig() Config {
-	viper.AddConfigPath("./config")
+	// root directory
+	_, b, _, _ := runtime.Caller(0)
+	basepath := filepath.Dir(b)
+	log.Println(basepath)
+	viper.AddConfigPath(basepath)
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(`.`, `_`))

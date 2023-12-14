@@ -31,30 +31,33 @@ func NewRedisClient(conf config.RedisConfig) RedisClient {
 	}
 }
 
+func (r *RedisImpl) convertMapStringToBase64(data map[string]interface{}) (map[string]interface{}, error) {
+	for key, value := range data {
+		switch value.(type) {
+		case string:
+			data[key] = base64.StdEncoding.EncodeToString([]byte(value.(string)))
+		case map[string]interface{}:
+			// convert to json string
+			jsonString, err := json.Marshal(value)
+			if err != nil {
+				return nil, err
+			}
+			data[key] = base64.StdEncoding.EncodeToString(jsonString)
+		}
+	}
+	return data, nil
+}
+
 func (r *RedisImpl) Publish(channel string, payload map[string]interface{}) error {
 	log.Println("Publishing event to RedisClient")
-
-	// convert payload to JSON string
-	payloadJSON, err := json.Marshal(payload["payload"])
-	if err != nil {
-		return err
-	}
-	payloadBase64 := base64.StdEncoding.EncodeToString(payloadJSON)
-	headersJSON, err := json.Marshal(payload["headers"])
-	if err != nil {
-		return err
-	}
-	headersBase64 := base64.StdEncoding.EncodeToString(headersJSON)
+	payload64, err := r.convertMapStringToBase64(payload)
 
 	err = r.Client.XAdd(&redis.XAddArgs{
 		Stream:       "messages",
 		MaxLen:       0,
 		MaxLenApprox: 0,
 		ID:           "",
-		Values: map[string]interface{}{
-			"headers": headersBase64,
-			"payload": payloadBase64,
-		},
+		Values:       payload64,
 	}).Err()
 
 	return err
@@ -62,7 +65,7 @@ func (r *RedisImpl) Publish(channel string, payload map[string]interface{}) erro
 
 func (r *RedisImpl) Consume(streams []string, consumerID string, consumerGroup string, fn ConsumerFunc) error {
 
-	_ = r.consumePending(streams, consumerID, consumerGroup, fn)
+	//_ = r.consumePending(streams, consumerID, consumerGroup, fn)
 
 	_ = r.consumeFromBeginning(streams, consumerID, consumerGroup, fn)
 
@@ -94,7 +97,7 @@ func (r *RedisImpl) Consume(streams []string, consumerID string, consumerGroup s
 			for _, message := range stream.Messages {
 				processorError := fn(message.Values)
 
-				err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
+				// err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
 				if err != nil {
 					return err
 				}
@@ -109,7 +112,7 @@ func (r *RedisImpl) Consume(streams []string, consumerID string, consumerGroup s
 func (r *RedisImpl) consumeFromBeginning(streamsStrings []string, consumerID string, consumerGroup string, fn ConsumerFunc) error {
 	streamsStrings = append(streamsStrings, "0")
 	for _, stream := range streamsStrings {
-		err := r.Client.XGroupCreateMkStream(stream, consumerGroup, "$").Err()
+		err := r.Client.XGroupCreateMkStream(stream, consumerGroup, "0").Err()
 		if err != nil {
 			log.Println(err)
 		}
@@ -131,7 +134,7 @@ func (r *RedisImpl) consumeFromBeginning(streamsStrings []string, consumerID str
 		for _, message := range stream.Messages {
 			processorError := fn(message.Values)
 
-			err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
+			// err = r.Client.XAck(stream.Stream, consumerGroup, message.ID).Err()
 			if err != nil {
 				return err
 			}
@@ -176,7 +179,7 @@ func (r *RedisImpl) consumePending(streamsStrings []string, consumerID string, c
 		// consume message
 		processorError := fn(message[0].Values)
 
-		err = r.Client.XAck(streamsStrings[0], consumerGroup, message[0].ID).Err()
+		//err = r.Client.XAck(streamsStrings[0], consumerGroup, message[0].ID).Err()
 		if err != nil {
 			return err
 		}

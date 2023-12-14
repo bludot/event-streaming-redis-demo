@@ -48,14 +48,12 @@ func (p *Processor[T]) increaseRetries(payload string) (*T, error) {
 	if data["payload"] == nil {
 		return nil, err
 	}
-	if data["payload"] != nil {
-		if data["payload"].(map[string]interface{})["retries"] == nil {
-			data["payload"].(map[string]interface{})["retries"] = 0
-		}
+	if data["retries"] == nil {
+		data["retries"] = 0
 
 	}
-	retries := data["payload"].(map[string]interface{})["retries"].(float64)
-	data["payload"].(map[string]interface{})["retries"] = retries + 1
+	retries := data["retries"].(float64)
+	data["retries"] = retries + 1
 
 	newPayloadJSON, err := json.Marshal(data)
 	if err != nil {
@@ -82,13 +80,13 @@ func (p *Processor[T]) getRetries(payload string) (int, error) {
 	if data["payload"] == nil {
 		return 0, err
 	}
-	if data["payload"] != nil {
-		if data["payload"].(map[string]interface{})["retries"] == nil {
-			data["payload"].(map[string]interface{})["retries"] = 0
-		}
 
+	if data["retries"] == nil {
+		data["retries"] = 0
 	}
-	retries := data["payload"].(map[string]interface{})["retries"].(float64)
+
+	retries, _ := data["retries"].(float64)
+
 	return int(retries), nil
 
 }

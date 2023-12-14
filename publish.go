@@ -14,10 +14,11 @@ func main() {
 	})
 	publisherInstance := publisher.NewPublisher[handler.Event[handler.MessagePayload]](redisClient)
 	err := publisherInstance.Publish("messages", handler.Event[handler.MessagePayload]{
+		Headers: handler.EventHeader{
+			TraceID: "1234",
+		},
 		Payload: handler.MessagePayload{
-			Headers: handler.EventHeader{
-				TraceID: "1234",
-			},
+
 			Message: "Hello world",
 		},
 		Retries: 1,
